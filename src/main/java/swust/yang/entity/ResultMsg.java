@@ -5,19 +5,19 @@ public class ResultMsg {
 	/**
 	 * 学生信息
 	 */
-	private String student_infor;
+	private String studentInfor;
 	
 	/**
 	 * 作业得分
 	 */
 	private float score;
-	
-	public String getStudent_infor() {
-		return student_infor;
+
+	public String getStudentInfor() {
+		return studentInfor;
 	}
 
-	public void setStudent_infor(String student_infor) {
-		this.student_infor = student_infor;
+	public void setStudentInfor(String studentInfor) {
+		this.studentInfor = studentInfor;
 	}
 
 	public float getScore() {
@@ -27,5 +27,4 @@ public class ResultMsg {
 	public void setScore(float score) {
 		this.score = score;
 	}
-
 }

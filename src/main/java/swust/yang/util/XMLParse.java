@@ -17,8 +17,9 @@ import javax.xml.transform.stream.StreamResult;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-import swust.yang.entity.ConfigInfo;
+import swust.yang.entity.CpplintConfigInfo;
 
+//废弃
 public class XMLParse {
 
 	/**
@@ -26,7 +27,7 @@ public class XMLParse {
 	 * @param config_info  配置信息
 	 * @param file_path  XML文件保存位置（路径 + 文件名 + 文件后缀名）
 	 */
-	public static void createXML(ConfigInfo config_info,String file_path) {
+	public static void createXML(CpplintConfigInfo config_info,String file_path) {
 		    //1、创建一个SAXTransformerFactory一个对象
 		    SAXTransformerFactory sf = (SAXTransformerFactory) SAXTransformerFactory.newInstance();
 		    OutputStream in =null;
@@ -61,6 +62,7 @@ public class XMLParse {
 		        AttributesImpl attr = new AttributesImpl();
 		        //开始创建元素
 		        handler.startElement("", "", "Cpplint", attr);
+		        /*
 		        if(config_info.getScore() != null) {
 		        	attr.addAttribute("", "", "Value", "", config_info.getScore().toString());
 			        handler.startElement("", "", "Score", attr);	
@@ -98,6 +100,7 @@ public class XMLParse {
 		        	handler.endElement("", "", "CheckExtend");
 		        	attr.clear();
 		        }
+		        */
 		        //结束元素创建
 		        handler.endElement("", "", "Cpplint");
 		        //关闭文档

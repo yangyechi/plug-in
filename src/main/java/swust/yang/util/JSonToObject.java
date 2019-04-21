@@ -1,22 +1,15 @@
 package swust.yang.util;
 
 import net.sf.json.JSONObject;
-import swust.yang.entity.ConfigInfo;
+import swust.yang.entity.CpplintConfigInfo;
 
 public class JSonToObject {
 	
-	public static ConfigInfo JSonStrToObject(String config_info) {
-		  
-		  if(config_info.indexOf("[") != -1){  
-			  config_info = config_info.replace("[", "");  
-	      }  
-	      if(config_info.indexOf("]") != -1){  
-	        	config_info = config_info.replace("]", "");  
-	      }
-	      JSONObject jsonObject = JSONObject.fromObject(config_info);
-	      ConfigInfo config_info_obj = 
-	    		  (ConfigInfo)JSONObject.toBean(jsonObject,ConfigInfo.class);
-	      return config_info_obj;
+	public static CpplintConfigInfo JSonStrToObject(String configInfo) {
+	      JSONObject jsonObject = JSONObject.fromObject(configInfo);
+	      CpplintConfigInfo configObj = 
+	    		  (CpplintConfigInfo)JSONObject.toBean(jsonObject,CpplintConfigInfo.class);
+	      return configObj;
 	}
 
 }

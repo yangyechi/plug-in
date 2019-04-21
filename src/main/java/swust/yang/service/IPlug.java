@@ -6,43 +6,44 @@ import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsg;
 
 public interface IPlug {
+	/**
+	 * 
+	 * @description 用于执行单个作业
+	 * @param toolPath   执行所需的外部工具的根目录(绝对路径)
+	 * @param configInfo 前端返回的配置信息(JSON格式)
+	 * @param filePath   待检查作业所在路径(绝对路径：包含文件名及文件后缀名)
+	 * @param logDir     日志存放目录(绝对路径)
+	 * @return 若执行成功，则返回执行结果(学生信息+得分-得分四舍五入取整)，反之返回null
+	 */
+	ResultMsg singleExecute(String configInfo, String toolPath, String filePath, String logDir);
+
+	/**
+	 * @description 批量执行一个目录下的所有作业
+	 * @param toolPath   执行所需的外部工具的根目录(绝对路径)
+	 * @param configInfo 前端返回的配置信息(JSON格式)
+	 * @param srcDir     待检查的作业目录(绝对路径)
+	 * @param logDir     日志存放目录(绝对路径)
+	 * @return 批量执行结果(学生信息+得分-得分四舍五入取整)，若某学生执行过程出错,那么该学生得分为0
+	 */
+	List<ResultMsg> batchExecute(String configInfo, String toolPath, String srcDir, String logDir);
+
+	/**
+	 * @description 用于检查前端配置是否符合规范
+	 * @param configInfo 前端返回的配置信息(JSON格式)
+	 * @return 如果配置没有错误,则返回"OK",否则返回错误描述。
+	 */
+	String checkConfigInfo(String configInfo);
+
+	/**
+	 * 
+	 * @return 返回对插件信息的描述(返回值为一个实体类对象,其中保存了插件信息)
+	 */
+	PluginInfo getPluginInfo();
+
 	/***
 	 * 
-	 * @param config_info 插件配置信息，JSon格式的字符串
-	 * @param file_path  所要执行的文件所在路径（包含文件名）
-	 * @param logpath  日志保存路径（不包含文件名）
-	 * @description 执行单个文件
-	 * @return 返回单个文件的执行结果（日志放在平台指定目录下）
+	 * @param preSetting 之前的配置信息(JSON格式),第一次配置时参数置为null
+	 * @return 返回插件配置前端界面
 	 */
-    ResultMsg singleExecute(String config_info,String file_path,String log_path);
-   
-    /***
-     * 
-     * @param config_info  插件配置信息
-     * @param src_path  批量执行文件所在目录（不包含文件名）
-     * @param dest_path 日志文件和结果分析汇总文件存放目录
-     * @return 返回批量执行结果
-     * @description 批量执行文件
-    */
-    List<ResultMsg> batchExecute(String config_info,String src_dir,String dest_path);
-    
-    /***
-     * @param config_info 配置信息（包括：执行参数、分数占比）
-     * @param file_path XML文件的保存位置，包含文件后缀名
-     * @return 解析平台送回的配置信息，并把解析后的信息送回给平台存储(实现配置信息持久化)，XML格式
-     */
-    void saveBaseInfo(String config_info,String file_path);
-    
-    /**
-     * 
-     * @return 获取插件信息
-     */
-    PluginInfo getPluginInfo(); 
-    
-    /***
-     * 
-     * @param preSetting 之前的配置信息，第一次配置参数置为null
-     * @return 返回前端插件配置界面代码
-     */
-    String getHtml(String preSetting);
+	String getHtml(String preSetting);
 }

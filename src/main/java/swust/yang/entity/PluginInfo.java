@@ -14,7 +14,7 @@ public class PluginInfo {
     /**
      * 插件接口实现类的类名（包括包名）
      */
-    private String class_name;
+    private String className;
     
     /**
      * 插件开发者
@@ -30,12 +30,12 @@ public class PluginInfo {
      * 
      * @return 获取实现插件接口的类名（包括包名）
      */
-	public String getClass_name() {
-		return class_name;
+	public String getClassName() {
+		return className;
 	}
 
-	public void setClass_name(String class_name) {
-		this.class_name = class_name;
+	public void setClassName(String className) {
+		this.className = className;
 	}
     
 	/**
