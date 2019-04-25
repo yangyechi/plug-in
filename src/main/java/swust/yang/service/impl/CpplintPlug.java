@@ -9,18 +9,20 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sf.json.JSONObject;
 import swust.yang.entity.CpplintConfigInfo;
 import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsg;
 import swust.yang.service.IPlug;
 import swust.yang.util.ConfigInfoManage;
-import swust.yang.util.JSonToObject;
 import swust.yang.util.RunTask;
+import swust.yang.util.SystemProperty;
 
 public class CpplintPlug implements IPlug {
-
+	
 	@Override
-	public ResultMsg singleExecute(String configInfo, String toolPath, String filePath, String logDir) {
+	public ResultMsg singleExecute(String configInfo, String toolPath, 
+								   String filePath, String logDir) {	
 		// 检查传入的toolPath是否存在
 		File toolFile = new File(toolPath);
 		if (!toolFile.exists()) {
@@ -66,41 +68,45 @@ public class CpplintPlug implements IPlug {
 			return null;
 		}
 
-		//工具路径(包含具体文件)
-		toolPath = toolPath + "\\" + "nsiqcppstyle.py";
-		
-		//日志格式
+		// 日志格式
 		String outputFormat = "--output=csv";
 		
+		// 文件分隔符
+		String fileSeparator = SystemProperty.getFileSeparator();
+			
+		//工具路径(包含具体文件)
+		toolPath = toolPath + fileSeparator + "nsiqcppstyle.py";
+			
 		// 规则文件路径
-		String fileFilterPath = filePath.substring(0, filePath.lastIndexOf("\\") + 1) + "filefilter.txt";
+		String fileFilterPath = filePath.substring(0, filePath.lastIndexOf(fileSeparator) + 1) + "filefilter.txt";
 
 		// 学生信息
-		String studentInfo = filePath.substring(filePath.lastIndexOf('\\') + 1, filePath.lastIndexOf('.'));
+		String studentInfo = filePath.substring(filePath.lastIndexOf(fileSeparator) + 1, filePath.lastIndexOf('.'));
+		
 		// 日志的命名格式
 		String logName = studentInfo + ".log";
 
 		// 日志存储位置（含文件名）
-		String logPath = logDir + "\\" + logName;
+		String logPath = logDir + fileSeparator + logName;
 
 		// 执行命令
-		StringBuilder executeCommand = new StringBuilder(
+		String executeCommand = 
 				"python" + " " + toolPath + " " + outputFormat + " " + "-o" + " "
-						+ logPath + " " + "-f" + " " + fileFilterPath + " " + filePath);
+						+ logPath + " " + "-f" + " " + fileFilterPath + " " + filePath;
 		System.out.println(executeCommand);
 
 		// 将前端返回的包含配置信息的JSon字符串转换为对象
-		CpplintConfigInfo configObj = JSonToObject.JSonStrToObject(configInfo);
+	    CpplintConfigInfo configObj =  JSonToObject(configInfo);	
 
 		// 配置规则
 		ConfigInfoManage.ruleConfig(configObj, fileFilterPath);
 
 		// 执行作业
 		try {
-			RunTask.runCommand(executeCommand.toString());
+			RunTask.runCommand(executeCommand);
 		} catch (IOException e) {
 			System.err.println("作业执行失败！错误原因可能是：");
-			System.err.println("1、执行命令错误(" + executeCommand.toString() + ");");
+			System.err.println("1、执行命令错误(" + executeCommand + ");");
 			System.err.println("2、传入的工具路径不是所需工具的根目录.");
 			e.printStackTrace();
 			return null;
@@ -109,7 +115,8 @@ public class CpplintPlug implements IPlug {
 		// 分析执行日志
 		float taskScore = 0.0f;
 		try {
-			taskScore = RunTask.getTaskScore(logPath, ConfigInfoManage.getRulesAndScores(configObj));
+			taskScore = RunTask.getTaskScoreOfLint(logPath, 
+												   ConfigInfoManage.getRulesAndScores(configObj));
 		} catch (FileNotFoundException e) {
 			System.err.println("作业执行失败！错误原因可能是：");
 			System.err.println("1、日志路径不存在(" + logPath + ");");
@@ -131,7 +138,8 @@ public class CpplintPlug implements IPlug {
 	}
 
 	@Override
-	public List<ResultMsg> batchExecute(String configInfo, String toolPath, String srcDir, String logDir) {
+	public List<ResultMsg> batchExecute(String configInfo, String toolPath, 
+										String srcDir, String logDir) {
 		// 执行结果集合
 		List<ResultMsg> msgs = new ArrayList<ResultMsg>();
 		// 实例化指定目录的文件对象
@@ -184,7 +192,7 @@ public class CpplintPlug implements IPlug {
 		});
 		for (String item : fileList) {
 			// 待检查的作业路径
-			String filePath = srcDir + "\\" + item;
+			String filePath = srcDir + SystemProperty.getFileSeparator() + item;
 			System.out.println("file path:" + filePath);
 			// 每次执行结果
 			ResultMsg ret = null;
@@ -197,7 +205,6 @@ public class CpplintPlug implements IPlug {
 				msg.setScore(0.0f);
 				msgs.add(msg);
 			}
-
 		}
 		return msgs;
 	}
@@ -207,11 +214,11 @@ public class CpplintPlug implements IPlug {
 		// 将前端返回的包含配置信息的JSon字符串转换为对象
 		CpplintConfigInfo configObj = null;
 		try {
-			configObj = JSonToObject.JSonStrToObject(configInfo);
+		    configObj = JSonToObject(configInfo);	  
 		} catch (net.sf.json.JSONException e) {
 			e.printStackTrace();
 			return "JSon格式错误！";
-		}
+		} 
 		// 获取CpplintConfigInfo类的所有公共方法
 		Method[] methods = configObj.getClass().getMethods();
 		// 总分
@@ -239,7 +246,7 @@ public class CpplintPlug implements IPlug {
 					}
 				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
 					e.printStackTrace();
-					return "未知错误！";
+					return "未知错误！请联系管理员！";
 				}
 			} else if (methodName.equals("getCheckExtendRules")) {
 				try {
@@ -270,11 +277,11 @@ public class CpplintPlug implements IPlug {
 						}
 					} catch (NoSuchMethodException | SecurityException e) {
 						e.printStackTrace();
-						return "未知错误！";
+						return "未知错误！请联系管理员！";
 					}
 				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
 					e.printStackTrace();
-					return "未知错误！";
+					return "未知错误！请联系管理员！";
 				}
 			} else if (methodName.startsWith("getCheck")) {
 				String mName = "getScoreOf" + methodName.substring(8);
@@ -300,18 +307,12 @@ public class CpplintPlug implements IPlug {
 				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
 						| NoSuchMethodException | SecurityException e) {
 					e.printStackTrace();
-					return "未知错误！";
+					return "未知错误！请联系管理员！";
 				}
 			}
 		}
 		if (score != totalScore) {
-			if(Math.abs(score - totalScore) <= 0.1) {
-				String s = String.format("%1.1f", score);
-				String ts = String.format("%1.1f", totalScore);
-				if(s.equals(ts)) {
-					return "OK";
-				}
-			}
+			
 			return "总分与各检查项分数之和不相等，请检查！";
 		}
 		return "OK";
@@ -345,7 +346,7 @@ public class CpplintPlug implements IPlug {
 					checkLineLength = "", checkIdentationStyleTab = "", checkIdentationStyleSpace = "",
 					checkOperationSpace = "", checkKeyWordsUseBraces = "", checkExtendRules = "";
 			// 将以前的配置信息(JSon字符串)转换为对象
-			CpplintConfigInfo configObj = JSonToObject.JSonStrToObject(preSetting);
+			CpplintConfigInfo configObj = JSonToObject(preSetting);	    	
 
 			// 获取以前的配置信息
 			// 获取CpplintConfigInfo类的所有公共方法
@@ -616,4 +617,10 @@ public class CpplintPlug implements IPlug {
 		return html;
 	}
 
+	private CpplintConfigInfo JSonToObject(String configInfo) {
+		JSONObject jsonObject = JSONObject.fromObject(configInfo);
+		CpplintConfigInfo configObj = 
+				(CpplintConfigInfo)JSONObject.toBean(jsonObject,CpplintConfigInfo.class);
+		return configObj;
+	}
 }

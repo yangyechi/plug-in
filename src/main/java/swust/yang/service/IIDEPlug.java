@@ -5,7 +5,7 @@ import java.util.List;
 import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsgOfGcc;
 
-public interface IGccPlug {
+public interface IIDEPlug {
 
 	/**
 	 * 

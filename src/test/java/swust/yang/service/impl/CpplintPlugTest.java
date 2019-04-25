@@ -52,6 +52,10 @@ class CpplintPlugTest {
 			//logDir不是一个目录
 			assertNull(cpplint.singleExecute(null, "E:\\test",
 						"E:\\test\\5120152516.cpp", "E:\\test\\5120152516.cpp"));
+			
+			//传入的待检查作业不是c/cpp文件
+			assertNull(cpplint.singleExecute(null, "E:\\test",
+						"E:\\test\\5120152516.app", "E:\\log"));
 		});
 	}
 
@@ -135,7 +139,7 @@ class CpplintPlugTest {
 		assertAll(() -> {
 			long start = System.currentTimeMillis();
 			List<ResultMsg> list = cpplint.batchExecute(configInfo, toolPath, filePath, logDir);
-			System.out.println("批量执行耗时：" + (System.currentTimeMillis() - start) + "ms");
+			System.out.println("cpplint批量执行耗时：" + (System.currentTimeMillis() - start) + "ms");
 			assertEquals(50.0f, list.get(0).getScore());
 			assertEquals("5120151234", list.get(0).getStudentInfor());
 
@@ -299,6 +303,16 @@ class CpplintPlugTest {
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("检查项分数必须大于0且小于等于100！", msg);
 		
+		//设置了检查项和分数，但分数小于0
+		configInfo = "{\r\n" 
+						+ "	\"totalScore\": \"100\",\r\n"
+						+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
+						+ "	\"scoreOfFuncAnnotation\": \"-110\",\r\n"
+						+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+						+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
+		msg = cpplint.checkConfigInfo(configInfo);
+		assertEquals("检查项分数必须大于0且小于等于100！", msg);
+		
 		//设置了检查项和分数，但分数为字母
 		configInfo = "{\r\n" + 
 				"	\"totalScore\": \"100\",\r\n" + 
@@ -382,8 +396,9 @@ class CpplintPlugTest {
 		assertEquals("扩展检查项分数必须大于0且不能为特殊字符/字母！", msg);
 	}
 	
-	@DisplayName("getPluginInfo => 获取插件信息")
+	
 	@Test
+	@DisplayName("getPluginInfo => 获取插件信息")
 	void testGetPluginInfo() {
 		PluginInfo plugInfo = cpplint.getPluginInfo();
 		assertEquals("cpplint-plug-1.0.jar",plugInfo.getName());
@@ -393,8 +408,9 @@ class CpplintPlugTest {
 		assertEquals("swust.yang.service.impl.CpplintPlug",plugInfo.getClassName());
 	}
 	
-	@DisplayName("getHtml => 第一次获取插件配置前端页面")
+	
 	@Test
+	@DisplayName("getHtml => 第一次获取插件配置前端页面")
 	void testGetHtml() {
 		String html = cpplint.getHtml(null);
 		System.out.println(html);

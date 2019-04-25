@@ -5,9 +5,9 @@ import java.util.List;
 
 import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsgOfGcc;
-import swust.yang.service.IGccPlug;
+import swust.yang.service.IIDEPlug;
 
-public class GccPlug implements IGccPlug {
+public class GccPlug implements IIDEPlug {
 
 	@Override
 	public ResultMsgOfGcc singleExecute(List<String> testCase,long timeout,String file_path, String log_dir){

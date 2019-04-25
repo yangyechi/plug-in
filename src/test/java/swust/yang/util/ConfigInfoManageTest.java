@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import swust.yang.entity.CppcheckConfigInfo;
 import swust.yang.entity.CpplintConfigInfo;
 
 @DisplayName("插件配置信息管理——代码规范性检查")
@@ -19,14 +20,18 @@ class ConfigInfoManageTest {
 
 	private CpplintConfigInfo config;
 	
+	private CppcheckConfigInfo cppcheckConfig;
+	
 	@BeforeEach
 	void init() throws Exception {
 		config = new CpplintConfigInfo();
+		cppcheckConfig = new CppcheckConfigInfo();
 	}
 
 	@AfterEach
 	void tearDown() throws Exception {
 		config = null;
+		cppcheckConfig = null;
 	}
 
 	@Test
@@ -113,6 +118,21 @@ class ConfigInfoManageTest {
 	}
 
 	@Test
+	@DisplayName("GetRulesAndScores => 获取配置及对应分数-cppcheck")
+	void testGetRulesAndScoresOfCppcheck() {
+		assertAll(()->{
+			cppcheckConfig.setCheckPerformance("performance");
+			cppcheckConfig.setScoreOfPerformance(18.5f);
+			
+			cppcheckConfig.setScoreOfError(88.5f);
+			
+			Map<String,Float> map = ConfigInfoManage.getRulesAndScores(cppcheckConfig);
+			assertEquals(88.5f,map.get("error").floatValue());
+			assertEquals(18.5f,map.get("performance").floatValue());
+		});
+	}
+	
+	@Test
 	@DisplayName("analysisConfigInfo => 基础规则解析(除缩进格式检查)")
 	void testAnalysisConfigInfo() {
 		config.setScoreOfFuncAnnotation(19.99f);
@@ -124,7 +144,7 @@ class ConfigInfoManageTest {
 		});
 		
 	}
-	
+		
 	@Test
 	@DisplayName("analysisConfigInfo => 扩展规则解析")
 	void testAnalysisConfigInfo2() {
@@ -159,6 +179,31 @@ class ConfigInfoManageTest {
 		});
 		
 	}
+	
+	@Test
+	@DisplayName("analysisConfigInfo => cppcheck")
+	void testAnalysisConfigInfoOfCppcheck() {
+		assertAll(()->{
+			cppcheckConfig.setCheckPortability("portability");
+			cppcheckConfig.setScoreOfPortability(18.5f);
+			
+			cppcheckConfig.setCheckStyle("style");
+			cppcheckConfig.setScoreOfStyle(35.0f);
+			
+			assertEquals("null",
+					ConfigInfoManage.analysisConfigInfo(cppcheckConfig, "getScoreOfWarning"));
+			
+			assertEquals("35.0",
+					ConfigInfoManage.analysisConfigInfo(cppcheckConfig, "getScoreOfStyle"));
+			
+			assertEquals("18.5",
+					ConfigInfoManage.analysisConfigInfo(cppcheckConfig, "getScoreOfPortability"));
+		
+			assertEquals("null",
+					ConfigInfoManage.analysisConfigInfo(cppcheckConfig, "getScoreOfPerformance"));
+		});
+	}
+	
 	
 	@Test
 	@DisplayName("isRulesExist => 规则存在")

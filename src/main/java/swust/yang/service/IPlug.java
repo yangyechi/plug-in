@@ -13,7 +13,7 @@ public interface IPlug {
 	 * @param configInfo 前端返回的配置信息(JSON格式)
 	 * @param filePath   待检查作业所在路径(绝对路径：包含文件名及文件后缀名)
 	 * @param logDir     日志存放目录(绝对路径)
-	 * @return 若执行成功，则返回执行结果(学生信息+得分-得分四舍五入取整)，反之返回null
+	 * @return 若执行成功，则返回执行结果(学生信息+得分(四舍五入取整))，反之返回null
 	 */
 	ResultMsg singleExecute(String configInfo, String toolPath, String filePath, String logDir);
 
@@ -23,7 +23,7 @@ public interface IPlug {
 	 * @param configInfo 前端返回的配置信息(JSON格式)
 	 * @param srcDir     待检查的作业目录(绝对路径)
 	 * @param logDir     日志存放目录(绝对路径)
-	 * @return 批量执行结果(学生信息+得分-得分四舍五入取整)，若某学生执行过程出错,那么该学生得分为0
+	 * @return 批量执行结果(学生信息+得分(四舍五入取整))，若某学生执行过程出错,那么该学生得分为0
 	 */
 	List<ResultMsg> batchExecute(String configInfo, String toolPath, String srcDir, String logDir);
 

@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import swust.yang.entity.CppcheckConfigInfo;
 import swust.yang.entity.CpplintConfigInfo;
 
 public class ConfigInfoManage {
@@ -107,6 +108,45 @@ public class ConfigInfoManage {
 		return map;
 	}
 
+	public static Map<String, Float> getRulesAndScores(CppcheckConfigInfo config) {
+		String rule = null;
+		Float score = null;
+		Map<String, Float> map = new HashMap<String, Float>();
+		// 获取CpplintConfigInfo类的所有公共方法
+		Method[] methods = config.getClass().getMethods();
+		// 遍历获取的公共方法数组
+		for (Method m : methods) {
+			// 寻找方法名开头为getCheck的公共方法
+			if (m.getName().startsWith("getCheck")) {
+				// 调用该get方法并获取其返回值
+				try {
+					rule = (String) m.invoke(config);
+					if (rule != null) {
+						String MethodName = "getScoreOf" + m.getName().substring(8);
+						try {
+							score = (Float) config.getClass().getMethod(MethodName).invoke(config);
+							map.put(rule, score);
+						} catch (NoSuchMethodException | SecurityException e) {
+							e.printStackTrace();
+						}
+					}
+				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+					e.printStackTrace();
+				}
+			}
+			else if(m.getName().equals("getScoreOfError")) {
+				try {
+					score = (Float) config.getClass().getMethod(m.getName()).invoke(config);
+					map.put("error",score);
+				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+						| NoSuchMethodException | SecurityException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return map;
+	}
+	
 	/**
 	 * 
 	 * @param config     配置信息
@@ -115,15 +155,13 @@ public class ConfigInfoManage {
 	 * 
 	 */
 	public static String analysisConfigInfo(CpplintConfigInfo config, String methodName) {
-		String s = "";
+		String s = "null";
 		if (!methodName.equals("getScoreOfExtendRules") && !methodName.equals("getScoreOfIdentationStyle")) {
 			try {
 				Float score = (Float) config.getClass().getMethod(methodName).invoke(config);
 				if (score != null) {
 					s = score.toString();
-				} else {
-					s = "null";
-				}
+				} 
 			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
 					| NoSuchMethodException | SecurityException e) {
 				e.printStackTrace();
@@ -136,8 +174,6 @@ public class ConfigInfoManage {
 					String mName = "getCheck" + methodName.substring(10);
 					String rule = (String) config.getClass().getMethod(mName).invoke(config);
 					s = score.toString() + "+" + rule;
-				} else {
-					s = "null";
 				}
 			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
 					| NoSuchMethodException | SecurityException e) {
@@ -155,9 +191,7 @@ public class ConfigInfoManage {
 					} else {
 						s = score.toString() + "+" + "space";
 					}
-				} else {
-					s = "null";
-				}
+				} 
 			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
 					| NoSuchMethodException | SecurityException e) {
 				e.printStackTrace();
@@ -167,6 +201,28 @@ public class ConfigInfoManage {
 		return s;
 	}
 
+	/**
+	 * 
+	 * @param config     配置信息
+	 * @param methodName 要调用的方法名(CppcheckConfigInfo里的getScore开头的方法)
+	 * @return 返回获取的分数(默认为null,即表示该项检查没有选中)
+	 * 
+	 */
+	public static String analysisConfigInfo(CppcheckConfigInfo config, String methodName) {
+		String s = "null";
+		try {
+			Float score = (Float) config.getClass().getMethod(methodName).invoke(config);
+			if (score != null) {
+				s = score.toString();
+			} 
+		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+				| NoSuchMethodException | SecurityException e) {
+			e.printStackTrace();
+			return null;
+		}
+		return s;
+	}
+	
 	/**
 	 * 
 	 * @param array 待检查的规则数组
