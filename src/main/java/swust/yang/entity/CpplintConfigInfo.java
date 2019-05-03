@@ -48,11 +48,6 @@ public class CpplintConfigInfo {
 	private Float scoreOfFuncStatLinesNum;
 	
 	/**
-	 * 检查变量命名
-	 */
-	private String checkVariableName;
-	
-	/**
 	 * 变量命名检查项设置的分数
 	 */
 	private Float scoreOfVariableName;
@@ -108,14 +103,14 @@ public class CpplintConfigInfo {
 	private Float scoreOfIdentationStyle;
 	
 	/**
-	 * 检查操作符周围是否使用空格
+	 * 检查关键词和括号之间是否使用一个空格隔开
 	 */
-	private String checkOperationSpace;
+	private String checkWordSpace;
 	
 	/**
-	 *操作符周围是否使用空格检查项设置的分数
+	 *检查关键词前后空格检查项设置的分数
 	 */
-	private Float scoreOfOperationSpace;
+	private Float scoreOfWordSpace;
 	
 	/**
 	 * 检查关键词内部为一条语句时，是否使用大括号
@@ -209,14 +204,6 @@ public class CpplintConfigInfo {
 		this.scoreOfFuncStatLinesNum = scoreOfFuncStatLinesNum;
 	}
 
-	public String getCheckVariableName() {
-		return checkVariableName;
-	}
-
-	public void setCheckVariableName(String checkVariableName) {
-		this.checkVariableName = checkVariableName;
-	}
-
 	public Float getScoreOfVariableName() {
 		return scoreOfVariableName;
 	}
@@ -305,20 +292,20 @@ public class CpplintConfigInfo {
 		this.scoreOfIdentationStyle = scoreOfIdentationStyle;
 	}
 
-	public String getCheckOperationSpace() {
-		return checkOperationSpace;
+	public String getCheckWordSpace() {
+		return checkWordSpace;
 	}
 
-	public void setCheckOperationSpace(String checkOperationSpace) {
-		this.checkOperationSpace = checkOperationSpace;
+	public void setCheckWordSpace(String checkWordSpace) {
+		this.checkWordSpace = checkWordSpace;
 	}
 
-	public Float getScoreOfOperationSpace() {
-		return scoreOfOperationSpace;
+	public Float getScoreOfWordSpace() {
+		return scoreOfWordSpace;
 	}
 
-	public void setScoreOfOperationSpace(Float scoreOfOperationSpace) {
-		this.scoreOfOperationSpace = scoreOfOperationSpace;
+	public void setScoreOfWordSpace(Float scoreOfWordSpace) {
+		this.scoreOfWordSpace = scoreOfWordSpace;
 	}
 
 	public String getCheckKeyWordsUseBraces() {

@@ -69,7 +69,7 @@ class CppcheckPlugTest {
 		String toolPath = "E:\\cppcheck";
 		assertAll(() -> {
 			ResultMsg ret = cppcheck.singleExecute(configInfo, toolPath, filePath, logDir);
-			assertEquals(45.0f, ret.getScore());
+			assertEquals("45.0", ret.getValue());
 			assertEquals("5120152516", ret.getStudentInfor());
 		});
 	}
@@ -90,7 +90,7 @@ class CppcheckPlugTest {
 		String toolPath = "E:\\cppcheck";
 		assertAll(() -> {
 			ResultMsg ret = cppcheck.singleExecute(configInfo, toolPath, filePath, logDir);
-			assertEquals(64.0f, ret.getScore());
+			assertEquals("64.0", ret.getValue());
 			assertEquals("5120151234", ret.getStudentInfor());
 		});
 	}
@@ -140,13 +140,13 @@ class CppcheckPlugTest {
 			long start = System.currentTimeMillis();
 			List<ResultMsg> list = cppcheck.batchExecute(configInfo, toolPath, filePath, logDir);
 			System.out.println("cppcheck批量执行耗时：" + (System.currentTimeMillis() - start) + "ms");
-			assertEquals(60.0f, list.get(0).getScore());
+			assertEquals("60.0", list.get(0).getValue());
 			assertEquals("5120151234", list.get(0).getStudentInfor());
 
-			assertEquals(55.0f, list.get(1).getScore());
+			assertEquals("55.0", list.get(1).getValue());
 			assertEquals("5120152516", list.get(1).getStudentInfor());
 
-			assertEquals(64.0f, list.get(2).getScore());
+			assertEquals("64.0", list.get(2).getValue());
 			assertEquals("5120152544", list.get(2).getStudentInfor());
 		});
 	}

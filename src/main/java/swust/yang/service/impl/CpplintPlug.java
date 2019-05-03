@@ -7,7 +7,10 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import net.sf.json.JSONObject;
 import swust.yang.entity.CpplintConfigInfo;
@@ -15,6 +18,8 @@ import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsg;
 import swust.yang.service.IPlug;
 import swust.yang.util.ConfigInfoManage;
+import swust.yang.util.Resource;
+import swust.yang.util.ResultsSummarOfLint;
 import swust.yang.util.RunTask;
 import swust.yang.util.SystemProperty;
 
@@ -133,13 +138,18 @@ public class CpplintPlug implements IPlug {
 		// 保存得分
 		ResultMsg msg = new ResultMsg();
 		msg.setStudentInfor(studentInfo);
-		msg.setScore(taskScore);
+		msg.setValue(String.valueOf(taskScore));
+		msg.setCode(0);
+		msg.setMessage("OK");
 		return msg;
 	}
 
 	@Override
 	public List<ResultMsg> batchExecute(String configInfo, String toolPath, 
 										String srcDir, String logDir) {
+		//批量执行标志位设为true
+		ResultsSummarOfLint.setFlag(true);
+		
 		// 执行结果集合
 		List<ResultMsg> msgs = new ArrayList<ResultMsg>();
 		// 实例化指定目录的文件对象
@@ -202,9 +212,104 @@ public class CpplintPlug implements IPlug {
 			} else {
 				ResultMsg msg = new ResultMsg();
 				msg.setStudentInfor(item.substring(0, item.lastIndexOf('.')));
-				msg.setScore(0.0f);
+				msg.setValue("0");
+				msg.setCode(-1);
+				msg.setMessage("该学生提交的作业执行失败！");
 				msgs.add(msg);
 			}
+		}
+		
+		//批量执行结果错误类型及对应数量汇总
+		Map<String,Integer> resultMap = new HashMap<String,Integer>();
+		ResultsSummarOfLint.resultSum(resultMap);
+				
+		//把批量执行标志位设为false，并把汇总结果集清空
+		ResultsSummarOfLint.setFlag(false);
+		ResultsSummarOfLint.clear();
+		
+		//当前系统环境下文件分隔符
+		String separator = SystemProperty.getFileSeparator();
+		
+		//创建存放html图表的目录结构
+		String htmlDir = srcDir + separator + "cpplintHtml";
+		String jsDir =  htmlDir + separator + "js";
+		String imgDir = htmlDir + separator + "img";
+		String cssDir = htmlDir + separator + "css";
+		new File(htmlDir).mkdir();
+		new File(jsDir).mkdir();
+		new File(imgDir).mkdir();
+		new File(cssDir).mkdir();
+		
+		//根据汇总结果生成图表
+		StringBuilder errorType = new StringBuilder();
+		errorType.append("var errorType = [");
+		StringBuilder errorNum = new StringBuilder();
+		errorNum.append("var errorNum = [");
+		StringBuilder errorMap = new StringBuilder();
+		errorMap.append("var errorMap = [");
+		
+		//解析汇总结果
+		for (Entry<String, Integer> item : resultMap.entrySet()) {
+			String key = item.getKey();
+			Integer value = item.getValue();
+			//错误类型
+			errorType.append("'" + key + "',");
+			//错误数量
+			errorNum.append(value + ",");
+			//错误类型-数量
+			errorMap.append("{value:" + value + ", name:'" + key + "'},");
+		}
+		errorType.append("]");
+		errorNum.append("]");
+		errorMap.append("]");
+		//数据合并
+		String data = errorType.toString() + "\n" + errorNum.toString() + "\n" + errorMap.toString();
+		
+		//源文件路径
+		String srcPath = null;
+		//目的文件路径
+		String destPath = null;		
+		
+		try {
+			//把数据写入指定路径的array.js文件中
+			destPath = jsDir + separator + "array.js";
+			Resource.writeToFile(data, destPath);
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
+		}
+		
+		//把jar包下面的html和js文件写入指定目录
+		//复制js文件到指定目录	
+		try {
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\echarts.min.js";
+			//srcPath = "/resources/echarts.min.js"
+			destPath = jsDir + separator + "echarts.min.js";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			//Resource.writeFromJar(srcPath, destPath, "jar");
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
+		}
+		
+		//复制html文件到指定目录	
+		try {
+			//histogram.html
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\histogram_cpplint.html";
+			//srcPath = "/resources/histogram_cpplint.html"
+			destPath = htmlDir + separator + "histogram.html";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			//Resource.writeFromJar(srcPath, destPath, "jar");
+			
+			//pie.html
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\pie_cpplint.html";
+			//srcPath = "/resources/pie_cpplint.html"
+			destPath = htmlDir + separator + "pie.html";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			//Resource.writeFromJar(srcPath, destPath, "jar");
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
 		}
 		return msgs;
 	}
@@ -309,7 +414,7 @@ public class CpplintPlug implements IPlug {
 					e.printStackTrace();
 					return "未知错误！请联系管理员！";
 				}
-			}
+			} 
 		}
 		if (score != totalScore) {
 			
@@ -335,16 +440,16 @@ public class CpplintPlug implements IPlug {
 
 		if (preSetting != null) {
 			// 保存分数
-			String scoreOfFuncAnnotation = "'' ", scoreOfFuncName = "'' ", scoreOfFuncParamtersNum = "'' ",
-					scoreOfFuncStatLinesNum = "'' ", scoreOfVariableName = "'' ", scoreOfMacroName = "'' ",
+			String  scoreOfFuncAnnotation = "'' ", scoreOfFuncName = "'' ", scoreOfFuncParamtersNum = "'' ",
+					scoreOfFuncStatLinesNum = "'' ", scoreOfMacroName = "'' ",
 					scoreOfNestedNum = "'' ", scoreOfUseGoto = "'' ", scoreOfLineLength = "'' ",
-					scoreOfIdentationStyle = "'' ", scoreOfOperationSpace = "'' ", scoreOfKeyWordsUseBraces = "'' ",
+					scoreOfIdentationStyle = "'' ", scoreOfWordSpace = "'' ", scoreOfKeyWordsUseBraces = "'' ",
 					scoreOfExtendRules = "'' ";
 			// 保存规则
-			String checkFuncAnnotation = "", checkFuncName = "", checkFuncParamtersNum = "", checkFuncStatLinesNum = "",
-					checkVariableName = "", checkMacroName = "", checkNestedNum = "", checkUseGoto = "",
+			String  checkFuncAnnotation = "", checkFuncName = "", checkFuncParamtersNum = "", checkFuncStatLinesNum = "",
+					checkMacroName = "", checkNestedNum = "", checkUseGoto = "",
 					checkLineLength = "", checkIdentationStyleTab = "", checkIdentationStyleSpace = "",
-					checkOperationSpace = "", checkKeyWordsUseBraces = "", checkExtendRules = "";
+					checkWordSpace = "", checkKeyWordsUseBraces = "", checkExtendRules = "";
 			// 将以前的配置信息(JSon字符串)转换为对象
 			CpplintConfigInfo configObj = JSonToObject(preSetting);	    	
 
@@ -362,63 +467,56 @@ public class CpplintPlug implements IPlug {
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkFuncAnnotation = " checked";
-							scoreOfFuncAnnotation = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfFuncAnnotation = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfFuncName":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkFuncName = " checked";
-							scoreOfFuncName = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfFuncName = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfFuncParamtersNum":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkFuncParamtersNum = " checked";
-							scoreOfFuncParamtersNum = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfFuncParamtersNum = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfFuncStatLinesNum":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkFuncStatLinesNum = " checked";
-							scoreOfFuncStatLinesNum = '"' + Float.valueOf(s).toString() + '"' + " ";
-						}
-						break;
-					case "getScoreOfVariableName":
-						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
-						if (s != null && !s.equals("null")) {
-							checkVariableName = " checked";
-							scoreOfVariableName = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfFuncStatLinesNum = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfMacroName":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkMacroName = " checked";
-							scoreOfMacroName = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfMacroName = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfNestedNum":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkNestedNum = " checked";
-							scoreOfNestedNum = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfNestedNum = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfUseGoto":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkUseGoto = " checked";
-							scoreOfUseGoto = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfUseGoto = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfLineLength":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkLineLength = " checked";
-							scoreOfLineLength = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfLineLength = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfIdentationStyle":
@@ -430,21 +528,21 @@ public class CpplintPlug implements IPlug {
 							} else {
 								checkIdentationStyleSpace = " checked";
 							}
-							scoreOfIdentationStyle = '"' + Float.valueOf(array[0]).toString() + '"' + " ";
+							scoreOfIdentationStyle = '"' + array[0].substring(0, array[0].indexOf('.')) + '"' + " ";
 						}
 						break;
-					case "getScoreOfOperationSpace":
+					case "getScoreOfWordSpace":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
-							checkOperationSpace = " checked";
-							scoreOfOperationSpace = '"' + Float.valueOf(s).toString() + '"' + " ";
+							checkWordSpace = " checked";
+							scoreOfWordSpace = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfKeyWordsUseBraces":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkKeyWordsUseBraces = " checked";
-							scoreOfKeyWordsUseBraces = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfKeyWordsUseBraces = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfExtendRules":
@@ -452,167 +550,153 @@ public class CpplintPlug implements IPlug {
 						if (s != null && !s.equals("null")) {
 							String[] array = s.split("\\+");
 							checkExtendRules = array[1];
-							scoreOfExtendRules = '"' + Float.valueOf(array[0]).toString() + '"' + " ";
+							scoreOfExtendRules = '"' + array[0].substring(0, array[0].indexOf('.')) + '"' + " ";
 						}
 						break;
 					}
 				}
 			}
 			// 前端页面初始化
-			html = "<div id = \"cpplint\" >\r\n" + "		总分\r\n"
-					+ "		<input type=\"text\" name=\"totalScore\" value=" + '"'
-					+ configObj.getTotalScore().toString() + '"' + " " + "placeholder=\"大于0小于等于100\" >\r\n"
-					+ "	    <br />\r\n" + "		\r\n" + "		检查函数注释\r\n"
-					+ "		<input type=\"checkbox\" name=\"checkFuncAnnotation\" value=\"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\""
-					+ checkFuncAnnotation + ">\r\n" + "		<input type=\"text\" name=\"scoreOfFuncAnnotation\" value="
-					+ scoreOfFuncAnnotation + "placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	    \r\n"
-					+ "	        检查函数命名\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncName\" value=\"~ RULE_3_3_A_start_function_name_with_lowercase_unix\""
-					+ checkFuncName + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfFuncName\" value="
-					+ scoreOfFuncName + "placeholder=\"检查项分数设置\">\r\n" + "	    <br />   \r\n" + "	      \r\n"
-					+ "	        检查函数参数个数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncParamtersNum\" value=\"~ RULE_6_1_E_do_not_use_more_than_5_paramters_in_function\""
-					+ checkFuncParamtersNum + ">\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfFuncParamtersNum\" value=" + scoreOfFuncParamtersNum
-					+ "placeholder=\"检查项分数设置\">\r\n" + "	    <br />   \r\n" + "	      \r\n"
-					+ "	         检查函数内部语句行数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncStatLinesNum\" value=\"~ RULE_6_1_G_write_less_than_200_lines_for_function\""
-					+ checkFuncStatLinesNum + ">\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfFuncStatLinesNum\" value=" + scoreOfFuncStatLinesNum
-					+ "placeholder=\"检查项分数设置\">\r\n" + "	    <br />   \r\n" + "	      \r\n" + "	        检查变量命名\r\n"
-					+ "	    <input type=\"checkbox\" disabled name=\"checkVariableName\" value=\"\"" + checkVariableName
-					+ ">\r\n" + "	    <input type=\"text\" name=\"scoreOfVariableName\" value=" + scoreOfVariableName
-					+ " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	       \r\n" + "	       检查宏常量命名\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkMacroName\" value=\"~ RULE_6_5_B_do_not_use_lowercase_for_macro_constants\""
-					+ checkMacroName + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfMacroName\" value="
-					+ scoreOfMacroName + " placeholder=\"检查项分数设置\">\r\n" + "	    <br />   \r\n" + "	       \r\n"
-					+ "	       检查嵌套次数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkNestedNum\" value=\"~ RULE_A_3_avoid_too_deep_block\""
-					+ checkNestedNum + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfNestedNum\" value="
-					+ scoreOfNestedNum + " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	 \r\n"
-					+ "	        检查是否使用goto语句\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkUseGoto\" value=\"~ RULE_7_2_B_do_not_use_goto_statement\""
-					+ checkUseGoto + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfUseGoto\" value="
-					+ scoreOfUseGoto + " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	\r\n"
-					+ "	       检查每行代码长度\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkLineLength\" value=\"~ RULE_4_4_A_do_not_write_over_120_columns_per_line\""
-					+ checkLineLength + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfLineLength\" value="
-					+ scoreOfLineLength + " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	\r\n"
-					+ "	        检查缩进格式\r\n"
-					+ "	    <input type=\"checkbox\" id = \"identationOfTab\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_A_use_tab_for_indentation\" onclick = \"check()\""
-					+ checkIdentationStyleTab + ">tab\r\n"
-					+ "	    <input type=\"checkbox\" id = \"identationOfSpace\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_B_use_space_for_indentation\" onclick = \"check()\""
-					+ checkIdentationStyleSpace + ">space\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfIdentationStyle\" value=" + scoreOfIdentationStyle
-					+ " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	       \r\n"
-					+ "	        检查操作符周围空格\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkOperationSpace\" value=\"~ RULE_4_2_A_A_space_around_operator\""
-					+ checkOperationSpace + ">\r\n" + "	    <input type=\"text\" name=\"scoreOfOperationSpace\" value="
-					+ scoreOfOperationSpace + " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	        \r\n"
-					+ "	        检查关键词是否使用大括号\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkKeyWordsUseBraces\" value=\"~ RULE_4_5_B_use_braces_even_for_one_statement\""
-					+ checkKeyWordsUseBraces + ">\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfKeyWordsUseBraces\" value=" + scoreOfKeyWordsUseBraces
-					+ " placeholder=\"检查项分数设置\">\r\n" + "	    <br />\r\n" + "	        \r\n" + "	        扩展检查项\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfExtendRules\" value=" + scoreOfExtendRules
-					+ " placeholder=\"扩展检查项分数设置\">\r\n" + "	    <br />\r\n"
-					+ "	    <textarea name=\"checkExtendRules\" placeholder=\"请输入完整的规则,规则间用英文分号分割.\" rows=\"4\" cols=\"75\">"
-					+ checkExtendRules + "</textarea>\r\n" + "	    <br />\r\n"
-					+ "	    <font size=\"3\" color=\"#FF0000\">检查项说明:</font>\r\n" + "	    <br />\r\n"
-					+ "	    <font size=\"2\">1、检查函数注释：函数必须提供doxygen格式的注释；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">2、检查函数命名：函数的命名必须以小写字母开头；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">3、检查函数参数个数：函数参数不能超过5个；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">4、检查函数内部语句行数：函数内部代码不能超过200行；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">5、检查变量命名：变量的命名必须以小写字母开头；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">6、检查宏常量命名：宏常量命名所用的字母必须全是大写字母；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">7、检查嵌套次数：代码的循环、选择嵌套深度不能超过3；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">8、检查是否使用goto语句：代码中不能使用goto语句；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">9、检查每行代码长度：每一行代码不能超过120字符；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">10、检查缩进格式：代码的缩进只能用tab/space；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">11、检查操作符周围空格：操作符两侧添加0/1个空格(代码排版)；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">12、检查关键词是否使用大括号：当关键词内部只有一条语句时，也必须使用一对大括号包裹；</font>\r\n"
-					+ "		<br />\r\n" + "		<font size=\"2\">13、扩展检查项：根据需求添加其他检查项，其他检查项</font>\r\n"
-					+ "		<a href=\"https://github.com/yangyechi/DiplomaProject/blob/master/%E4%BB%A3%E7%A0%81%E8%A7%84%E8%8C%83%E6%80%A7%E6%A3%80%E6%9F%A5_%E6%89%80%E6%9C%89%E6%A3%80%E6%9F%A5%E9%A1%B9%E5%AF%B9%E5%BA%94%E8%A7%84%E5%88%99.docx\" title=\"所有检查项文档说明\">文档</a>\r\n"
-					+ "		<br />\r\n" + "	</div>\r\n" + "  	<script >\r\n" + "  		function check(){\r\n"
-					+ "  			if(document.getElementById('identationOfTab').checked){\r\n"
-					+ "  				document.getElementById(\"identationOfSpace\").disabled = true;\r\n"
-					+ "  			}\r\n"
-					+ "  			else if(document.getElementById('identationOfSpace').checked){\r\n"
-					+ "  				document.getElementById(\"identationOfTab\").disabled = true;\r\n"
-					+ "  			}\r\n" + "  			else{\r\n"
-					+ "  				document.getElementById(\"identationOfSpace\").disabled = false;\r\n"
-					+ "  				document.getElementById(\"identationOfTab\").disabled = false;\r\n"
-					+ "  			}\r\n" + "  		}\r\n" + "  	</script>";
+			html = "<div id = \"cpplint\" >\r\n" + 
+					"		总分\r\n" + 
+					"		<input type=\"number\" value=" + '"'+ configObj.getTotalScore().toString().substring(0, configObj.getTotalScore().toString().indexOf('.')) + '"' + " min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"		<font size=\"2\">/*各检查项分数之和*/</font>\r\n" + 
+					"	    <br />		\r\n" + 
+					"		检查函数注释\r\n" + 
+					"		<input type=\"checkbox\" name=\"checkFuncAnnotation\" value=\"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\"" + checkFuncAnnotation +"/>\r\n" + 
+					"		<input type=\"number\" name=\"scoreOfFuncAnnotation\" value="+ scoreOfFuncAnnotation +" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数必须提供doxygen格式的注释*/</font>\r\n" + 
+					"	    <br />   \r\n" + 
+					"	        检查函数命名\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncName\" value=\"~ RULE_3_3_A_start_function_name_with_lowercase_unix\"" + checkFuncName + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncName\" value=" + scoreOfFuncName + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数的命名必须以小写字母开头*/</font>\r\n" + 
+					"	    <br />   \r\n" + 
+					"	       检查函数参数个数\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncParamtersNum\" value=\"~ RULE_6_1_E_do_not_use_more_than_5_paramters_in_function\"" + checkFuncParamtersNum + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncParamtersNum\" value=" + scoreOfFuncParamtersNum + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*检查函数参数个数：函数参数不能超过5个*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	        检查函数内部语句行数\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncStatLinesNum\" value=\"~ RULE_6_1_G_write_less_than_200_lines_for_function\"" + checkFuncStatLinesNum + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncStatLinesNum\" value=" + scoreOfFuncStatLinesNum + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数内部代码不能超过200行*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	       检查宏常量命名\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkMacroName\" value=\"~ RULE_6_5_B_do_not_use_lowercase_for_macro_constants\"" + checkMacroName +"/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfMacroName\" value=" + scoreOfMacroName + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*宏常量命名所用的字母必须全是大写字母*/</font>\r\n" + 
+					"	    <br />	       \r\n" + 
+					"	       检查嵌套深度\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkNestedNum\" value=\"~ RULE_A_3_avoid_too_deep_block\"" + checkNestedNum + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfNestedNum\" value=" + scoreOfNestedNum + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码的循环、选择嵌套深度不能超过3层*/</font>\r\n" + 
+					"	    <br />	 \r\n" + 
+					"	       检查是否使用goto语句\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkUseGoto\" value=\"~ RULE_7_2_B_do_not_use_goto_statement\"" + checkUseGoto + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfUseGoto\" value=" + scoreOfUseGoto + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码中不能使用goto语句*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	       检查每行代码长度\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkLineLength\" value=\"~ RULE_4_4_A_do_not_write_over_120_columns_per_line\"" + checkLineLength + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfLineLength\" value=" + scoreOfLineLength + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*每一行代码不能超过120字符*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	        检查缩进格式\r\n" + 
+					"	    <input type=\"checkbox\" id = \"identationOfTab\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_A_use_tab_for_indentation\" onclick = \"check()\"" + checkIdentationStyleTab +"/>tab\r\n" + 
+					"	    <input type=\"checkbox\" id = \"identationOfSpace\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_B_use_space_for_indentation\" onclick = \"check()\"" + checkIdentationStyleSpace +"/>space\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfIdentationStyle\" value=" + scoreOfIdentationStyle +" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码只能用tab或者space进行缩进*/</font>\r\n" + 
+					"	    <br />       \r\n" + 
+					"	        检查关键词前后空格\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkWordSpace\" value=\"~ RULE_4_2_A_B_space_around_word\"" + checkWordSpace + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfWordSpace\" value=" + scoreOfWordSpace + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*关键词(if/else/for)和括号之间要使用一个空格隔开*/</font>\r\n" + 
+					"	    <br />	    \r\n" + 
+					"	        检查关键词是否使用大括号\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkKeyWordsUseBraces\" value=\"~ RULE_4_5_B_use_braces_even_for_one_statement\"" + checkKeyWordsUseBraces + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfKeyWordsUseBraces\" value=" + scoreOfKeyWordsUseBraces + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*当关键词内部只有一条语句时，也必须使用一对大括号包裹*/</font>\r\n" + 
+					"	    <br />	        \r\n" + 
+					"	        扩展检查项\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfExtendRules\" value=" + scoreOfExtendRules + " min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*根据需求添加其他检查项*/</font>\r\n" + 
+					"	    <a href=\"https://github.com/yangyechi/DiplomaProject/tree/master/cpplint\" title=\"扩展检查项文档说明\">文档</a>\r\n" + 
+					"	    <br />\r\n" + 
+					"	    <textarea name=\"checkExtendRules\" placeholder=\"请输入完整的规则,规则间用英文分号分割.\" rows=\"4\" cols=\"73\">" + checkExtendRules + "</textarea>\r\n" + 
+					"	    <br />\r\n" + 
+					"	</div>";
 
 		} else {
-			html = "<div id = \"cpplint\" >\r\n" + "		总分\r\n"
-					+ "		<input type=\"text\" name=\"totalScore\" value=\"\"  placeholder=\"大于0小于等于100\" >\r\n"
-					+ "	    <br />\r\n" + "		\r\n" + "		检查函数注释\r\n"
-					+ "		<input type=\"checkbox\" name=\"checkFuncAnnotation\" value=\"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\" >\r\n"
-					+ "		<input type=\"text\" name=\"scoreOfFuncAnnotation\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	    \r\n" + "	        检查函数命名\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncName\" value=\"~ RULE_3_3_A_start_function_name_with_lowercase_unix\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfFuncName\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />   \r\n" + "	      \r\n" + "	        检查函数参数个数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncParamtersNum\" value=\"~ RULE_6_1_E_do_not_use_more_than_5_paramters_in_function\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfFuncParamtersNum\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />   \r\n" + "	      \r\n" + "	         检查函数内部语句行数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkFuncStatLinesNum\" value=\"~ RULE_6_1_G_write_less_than_200_lines_for_function\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfFuncStatLinesNum\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />   \r\n" + "	      \r\n" + "	        检查变量命名\r\n"
-					+ "	    <input type=\"checkbox\" disabled name=\"checkVariableName\" value=\"\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfVariableName\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	       \r\n" + "	       检查宏常量命名\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkMacroName\" value=\"~ RULE_6_5_B_do_not_use_lowercase_for_macro_constants\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfMacroName\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />   \r\n" + "	       \r\n" + "	       检查嵌套次数\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkNestedNum\" value=\"~ RULE_A_3_avoid_too_deep_block\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfNestedNum\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	 \r\n" + "	        检查是否使用goto语句\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkUseGoto\" value=\"~ RULE_7_2_B_do_not_use_goto_statement\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfUseGoto\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	\r\n" + "	       检查每行代码长度\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkLineLength\" value=\"~ RULE_4_4_A_do_not_write_over_120_columns_per_line\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfLineLength\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	\r\n" + "	        检查缩进格式\r\n"
-					+ "	    <input type=\"checkbox\" id = \"identationOfTab\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_A_use_tab_for_indentation\" onclick = \"check()\">tab\r\n"
-					+ "	    <input type=\"checkbox\" id = \"identationOfSpace\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_B_use_space_for_indentation\" onclick = \"check()\">space\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfIdentationStyle\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	       \r\n" + "	        检查操作符周围空格\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkOperationSpace\" value=\"~ RULE_4_2_A_A_space_around_operator\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfOperationSpace\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	        \r\n" + "	        检查关键词是否使用大括号\r\n"
-					+ "	    <input type=\"checkbox\" name=\"checkKeyWordsUseBraces\" value=\"~ RULE_4_5_B_use_braces_even_for_one_statement\" >\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfKeyWordsUseBraces\" value=\"\" placeholder=\"检查项分数设置\">\r\n"
-					+ "	    <br />\r\n" + "	        \r\n" + "	        扩展检查项\r\n"
-					+ "	    <input type=\"text\" name=\"scoreOfExtendRules\" value=\"\" placeholder=\"扩展检查项分数设置\">\r\n"
-					+ "	    <br />\r\n"
-					+ "	    <textarea name=\"checkExtendRules\" placeholder=\"请输入完整的规则,规则间用英文分号分割.\" rows=\"4\" cols=\"75\"></textarea>\r\n"
-					+ "	    <br />\r\n" + "	    <font size=\"3\" color=\"#FF0000\">检查项说明:</font>\r\n"
-					+ "	    <br />\r\n" + "	    <font size=\"2\">1、检查函数注释：函数必须提供doxygen格式的注释；</font>\r\n"
-					+ "		<br />\r\n" + "		<font size=\"2\">2、检查函数命名：函数的命名必须以小写字母开头；</font>\r\n"
-					+ "		<br />\r\n" + "		<font size=\"2\">3、检查函数参数个数：函数参数不能超过5个；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">4、检查函数内部语句行数：函数内部代码不能超过200行；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">5、检查变量命名：变量的命名必须以小写字母开头；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">6、检查宏常量命名：宏常量命名所用的字母必须全是大写字母；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">7、检查嵌套次数：代码的循环、选择嵌套深度不能超过3；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">8、检查是否使用goto语句：代码中不能使用goto语句；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">9、检查每行代码长度：每一行代码不能超过120字符；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">10、检查缩进格式：代码的缩进只能用tab/space；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">11、检查操作符周围空格：操作符两侧添加0/1个空格(代码排版)；</font>\r\n" + "		<br />\r\n"
-					+ "		<font size=\"2\">12、检查关键词是否使用大括号：当关键词内部只有一条语句时，也必须使用一对大括号包裹；</font>\r\n"
-					+ "		<br />\r\n" + "		<font size=\"2\">13、扩展检查项：根据需求添加其他检查项，其他检查项</font>\r\n"
-					+ "		<a href=\"https://github.com/yangyechi/DiplomaProject/blob/master/%E4%BB%A3%E7%A0%81%E8%A7%84%E8%8C%83%E6%80%A7%E6%A3%80%E6%9F%A5_%E6%89%80%E6%9C%89%E6%A3%80%E6%9F%A5%E9%A1%B9%E5%AF%B9%E5%BA%94%E8%A7%84%E5%88%99.docx\" title=\"所有检查项文档说明\">文档</a>\r\n"
-					+ "		<br />\r\n" + "	</div>\r\n" + "  	<script >\r\n" + "  		function check(){\r\n"
-					+ "  			if(document.getElementById('identationOfTab').checked){\r\n"
-					+ "  				document.getElementById(\"identationOfSpace\").disabled = true;\r\n"
-					+ "  			}\r\n"
-					+ "  			else if(document.getElementById('identationOfSpace').checked){\r\n"
-					+ "  				document.getElementById(\"identationOfTab\").disabled = true;\r\n"
-					+ "  			}\r\n" + "  			else{\r\n"
-					+ "  				document.getElementById(\"identationOfSpace\").disabled = false;\r\n"
-					+ "  				document.getElementById(\"identationOfTab\").disabled = false;\r\n"
-					+ "  			}\r\n" + "  		}\r\n" + "  	</script>";
+			html = "<div id = \"cpplint\" >\r\n" + 
+					"		总分\r\n" + 
+					"		<input type=\"number\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"		<font size=\"2\">/*各检查项分数之和*/</font>\r\n" + 
+					"	    <br />		\r\n" + 
+					"		检查函数注释\r\n" + 
+					"		<input type=\"checkbox\" name=\"checkFuncAnnotation\" value=\"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\" />\r\n" + 
+					"		<input type=\"number\" name=\"scoreOfFuncAnnotation\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数必须提供doxygen格式的注释*/</font>\r\n" + 
+					"	    <br />   \r\n" + 
+					"	        检查函数命名\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncName\" value=\"~ RULE_3_3_A_start_function_name_with_lowercase_unix\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncName\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数的命名必须以小写字母开头*/</font>\r\n" + 
+					"	    <br />   \r\n" + 
+					"	       检查函数参数个数\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncParamtersNum\" value=\"~ RULE_6_1_E_do_not_use_more_than_5_paramters_in_function\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncParamtersNum\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*检查函数参数个数：函数参数不能超过5个*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	        检查函数内部语句行数\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkFuncStatLinesNum\" value=\"~ RULE_6_1_G_write_less_than_200_lines_for_function\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfFuncStatLinesNum\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*函数内部代码不能超过200行*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	       检查宏常量命名\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkMacroName\" value=\"~ RULE_6_5_B_do_not_use_lowercase_for_macro_constants\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfMacroName\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*宏常量命名所用的字母必须全是大写字母*/</font>\r\n" + 
+					"	    <br />	       \r\n" + 
+					"	       检查嵌套深度\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkNestedNum\" value=\"~ RULE_A_3_avoid_too_deep_block\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfNestedNum\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码的循环、选择嵌套深度不能超过3层*/</font>\r\n" + 
+					"	    <br />	 \r\n" + 
+					"	       检查是否使用goto语句\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkUseGoto\" value=\"~ RULE_7_2_B_do_not_use_goto_statement\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfUseGoto\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码中不能使用goto语句*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	       检查每行代码长度\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkLineLength\" value=\"~ RULE_4_4_A_do_not_write_over_120_columns_per_line\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfLineLength\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*每一行代码不能超过120字符*/</font>\r\n" + 
+					"	    <br />\r\n" + 
+					"	        检查缩进格式\r\n" + 
+					"	    <input type=\"checkbox\" id = \"identationOfTab\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_A_use_tab_for_indentation\" onclick = \"check()\" />tab\r\n" + 
+					"	    <input type=\"checkbox\" id = \"identationOfSpace\" name=\"checkIdentationStyle\" value=\"~ RULE_4_1_A_B_use_space_for_indentation\" onclick = \"check()\" />space\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfIdentationStyle\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*代码只能用tab或者space进行缩进*/</font>\r\n" + 
+					"	    <br />       \r\n" + 
+					"	        检查关键词前后空格\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkWordSpace\" value=\"~ RULE_4_2_A_B_space_around_word\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfWordSpace\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*关键词(if/else/for)和括号之间要使用一个空格隔开*/</font>\r\n" + 
+					"	    <br />	    \r\n" + 
+					"	        检查关键词是否使用大括号\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkKeyWordsUseBraces\" value=\"~ RULE_4_5_B_use_braces_even_for_one_statement\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfKeyWordsUseBraces\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*当关键词内部只有一条语句时，也必须使用一对大括号包裹*/</font>\r\n" + 
+					"	    <br />	        \r\n" + 
+					"	        扩展检查项\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfExtendRules\" value=\"\" min=\"1\" max=\"100\" placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*根据需求添加其他检查项*/</font>\r\n" + 
+					"	    <a href=\"https://github.com/yangyechi/DiplomaProject/tree/master/cpplint\" title=\"扩展检查项文档说明\">文档</a>\r\n" + 
+					"	    <br />\r\n" + 
+					"	    <textarea name=\"checkExtendRules\" placeholder=\"请输入完整的规则,规则间用英文分号分割.\" rows=\"4\" cols=\"73\"></textarea>\r\n" + 
+					"	    <br />\r\n" + 
+					"	</div>";
 		}
 		return html;
 	}

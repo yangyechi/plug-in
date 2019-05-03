@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import net.sf.json.JSONObject;
 import swust.yang.entity.CppcheckConfigInfo;
@@ -16,6 +18,8 @@ import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsg;
 import swust.yang.service.IPlug;
 import swust.yang.util.ConfigInfoManage;
+import swust.yang.util.Resource;
+import swust.yang.util.ResultsSummarOfCheck;
 import swust.yang.util.RunTask;
 import swust.yang.util.SystemProperty;
 
@@ -148,12 +152,17 @@ public class CppcheckPlug implements IPlug {
 		// 保存得分
 		ResultMsg msg = new ResultMsg();
 		msg.setStudentInfor(studentInfo);
-		msg.setScore(taskScore);
+		msg.setValue(String.valueOf(taskScore));
+		msg.setCode(0);
+		msg.setMessage("OK");
 		return msg;
 	}
 
 	@Override
 	public List<ResultMsg> batchExecute(String configInfo, String toolPath, String srcDir, String logDir) {
+		//批量执行标志位设为true
+		ResultsSummarOfCheck.setFlag(true);
+		
 		// 执行结果集合
 		List<ResultMsg> msgs = new ArrayList<ResultMsg>();
 
@@ -206,6 +215,7 @@ public class CppcheckPlug implements IPlug {
 				return false;
 			}
 		});
+		//循环执行传入目录下待检查的作业
 		for (String item : fileList) {
 			// 待检查的作业路径
 			String filePath = srcDir + SystemProperty.getFileSeparator() + item;
@@ -218,10 +228,106 @@ public class CppcheckPlug implements IPlug {
 			} else {
 				ResultMsg msg = new ResultMsg();
 				msg.setStudentInfor(item.substring(0, item.lastIndexOf('.')));
-				msg.setScore(0.0f);
+				msg.setValue("0");
+				msg.setCode(-1);
+				msg.setMessage("该学生提交的作业执行失败！");
 				msgs.add(msg);
 			}
 		}
+		
+		//批量执行结果错误类型及对应数量汇总
+		Map<String,Integer> resultMap = new HashMap<String,Integer>();
+		ResultsSummarOfCheck.resultSum(resultMap);
+		
+		//把批量执行标志位设为false并汇总结果集清空
+		ResultsSummarOfCheck.setFlag(false);
+		ResultsSummarOfCheck.clear();
+		
+		//当前系统环境下文件分隔符
+		String separator = SystemProperty.getFileSeparator();
+		
+		//创建存放html图表的目录结构
+		String htmlDir = srcDir + separator + "cppcheckHtml";
+		String jsDir =  htmlDir + separator + "js";
+		String imgDir = htmlDir + separator + "img";
+		String cssDir = htmlDir + separator + "css";
+		new File(htmlDir).mkdir();
+		new File(jsDir).mkdir();
+		new File(imgDir).mkdir();
+		new File(cssDir).mkdir();
+		
+		//根据汇总结果生成图表
+		StringBuilder errorType = new StringBuilder();
+		errorType.append("var errorType = [");
+		StringBuilder errorNum = new StringBuilder();
+		errorNum.append("var errorNum = [");
+		StringBuilder errorMap = new StringBuilder();
+		errorMap.append("var errorMap = [");
+		
+		// 解析汇总结果
+		for (Entry<String, Integer> item : resultMap.entrySet()) {
+			String key = item.getKey();
+			Integer value = item.getValue();
+			// 错误类型
+			errorType.append("'" + key + "',");
+			// 错误数量
+			errorNum.append(value + ",");
+			// 错误类型-数量
+			errorMap.append("{value:" + value + ", name:'" + key + "'},");
+		}
+		errorType.append("]");
+		errorNum.append("]");
+		errorMap.append("]");
+		// 数据合并
+		String data = errorType.toString() + "\n" + errorNum.toString() + "\n" + errorMap.toString();
+		
+		// 源文件路径
+		String srcPath = null;
+		// 目的文件路径
+		String destPath = null;
+		
+		try {
+			// 把数据写入指定路径的array.js文件中
+			destPath = jsDir + separator + "array.js";
+			Resource.writeToFile(data, destPath);
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
+		}
+		
+		// 把jar包下面的html和js文件写入指定目录		
+		// 复制js文件到指定目录
+		try {
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\echarts.min.js";
+			// srcPath = "/resources/echarts.min.js"
+			destPath = jsDir + separator + "echarts.min.js";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			// Resource.writeFromJar(srcPath, destPath, "jar");
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
+		}
+		
+		// 复制html文件到指定目录
+		try {
+			// histogram.html
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\histogram_cppcheck.html";
+			// srcPath = "/resources/histogram_cppcheck.html"
+			destPath = htmlDir + separator + "histogram.html";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			// Resource.writeFromJar(srcPath, destPath, "jar");
+
+			// pie.html
+			srcPath = System.getProperty("user.dir") + "\\src\\main\\resources\\pie_cppcheck.html";
+			// srcPath = "/resources/pie_cppcheck.html"
+			destPath = htmlDir + separator + "pie.html";
+			Resource.writeFromJar(srcPath, destPath, "produce");
+			// Resource.writeFromJar(srcPath, destPath, "jar");
+		} catch (IOException e) {
+			System.err.println("目的文件路径不存在：" + destPath);
+			e.printStackTrace();
+		}
+		
 		return msgs;
 	}
 
@@ -332,46 +438,33 @@ public class CppcheckPlug implements IPlug {
 		if(preSetting == null) {
 			html = "<div id = \"cppcheck\" >\r\n" + 
 					"		总分\r\n" + 
-					"		<input type=\"text\" name=\"totalScore\" value=\"\" placeholder=\"大于0小于等于100\" >\r\n" + 
+					"		<input type=\"number\" name=\"totalScore\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*各检查项分数之和*/</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"		\r\n" + 
 					"		启用错误消息(默认开启)\r\n" + 
-					"		<input type=\"text\" name=\"scoreOfError\" value=\"\" placeholder=\"检查项分数设置\">\r\n" + 
+					"		<input type=\"number\" name=\"scoreOfError\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"		<font size=\"2\">/*错误消息：代码中的错误项（编译器检查不出来的BUG），如：数组越界、内存泄漏等*/</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"	    \r\n" + 
-					"	        启用警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkWarning\" value=\"warning\">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfWarning\" value=\"\" placeholder=\"检查项分数设置\">\r\n" + 
+					"	       启用警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkWarning\" value=\"warning\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfWarning\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*警告消息：为了避免产生bug而提供的编程改进意见，如：所写的代码可能出现空指针异常等*/</font>\r\n" + 
 					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用风格警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkStyle\" value=\"style\">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfStyle\" value=\"\" placeholder=\"检查项分数设置\">\r\n" + 
-					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用可移植性警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkPortability\" value=\"portability\">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfPortability\" value=\"\" placeholder=\"检查项分数设置\">\r\n" + 
-					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用性能警告消息\r\n" + 
+					"	       启用风格警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkStyle\" value=\"style\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfStyle\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*风格警告消息：风格有关问题的代码清理，如：冗余代码、常量性等*/</font>\r\n" + 
+					"	    <br />    \r\n" + 
+					"	       启用可移植性警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkPortability\" value=\"portability\" />\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfPortability\" value=\"\" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*可移植性警告消息：提示跨平台时容易出现的问题，如：64 位的可移植性、不同的编译器中代码运行结果不同等*/</font>\r\n" + 
+					"	    <br />	      \r\n" + 
+					"	       启用性能警告消息\r\n" + 
 					"	    <input type=\"checkbox\" name=\"checkPerformance\" value=\"performance\">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfPerformance\" value=\"\"  placeholder=\"检查项分数设置\">\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfPerformance\" value=\"\"  min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">性能警告消息：建议可优化的代码（这些建议只是基于常识，即使修复这些消息，也不确定会得到任何可测量的性能提升）；</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"	     \r\n" + 
-					"	    <font size=\"3\" color=\"#FF0000\">检查项说明:</font>\r\n" + 
-					"	    <br />\r\n" + 
-					"	    <font size=\"2\">1、错误消息：代码中的错误项（编译器检查不出来的BUG），如：数组越界、内存泄漏等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">2、警告消息：为了避免产生bug而提供的编程改进意见，如：代码可能出现空指针异常等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">3、风格警告消息：风格有关问题的代码清理，如：冗余代码、常量性等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">4、可移植性警告消息：提示跨平台时容易出现的问题，如：64 位的可移植性、不同的编译器中代码运行结果不同等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">5、性能警告消息：建议可优化的代码（这些建议只是基于常识，即使修复这些消息，也不确定会得到任何可测量的性能提升）；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		\r\n" + 
 					"	</div>";
 		} else {
 			// 保存分数
@@ -398,75 +491,64 @@ public class CppcheckPlug implements IPlug {
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkWarning = " checked";
-							scoreOfWarning = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfWarning = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfStyle":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkStyle = " checked";
-							scoreOfStyle = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfStyle = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfPortability":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkPortability = " checked";
-							scoreOfPortability = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfPortability = '"' + s + '"' + " ";
 						}
 						break;
 					case "getScoreOfPerformance":
 						s = ConfigInfoManage.analysisConfigInfo(configObj, mName);
 						if (s != null && !s.equals("null")) {
 							checkPerformance = " checked";
-							scoreOfPerformance = '"' + Float.valueOf(s).toString() + '"' + " ";
+							scoreOfPerformance = '"' + s + '"' + " ";
 						}
 						break;
 					}
 				}
 			}
+			String totalScore = configObj.getTotalScore().toString();
+			String errorScore = configObj.getScoreOfError().toString();
 			html = "<div id = \"cppcheck\" >\r\n" + 
 					"		总分\r\n" + 
-					"		<input type=\"text\" name=\"totalScore\" value=" + '"'+ configObj.getTotalScore().toString() + '"' + " placeholder=\"大于0小于等于100\" >\r\n" + 
+					"		<input type=\"number\" name=\"totalScore\" value=" + '"' + totalScore.substring(0, totalScore.indexOf('.')) + '"' + " min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*各检查项分数之和*/</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"		\r\n" + 
 					"		启用错误消息(默认开启)\r\n" + 
-					"		<input type=\"text\" name=\"scoreOfError\" value=" + '"'+ configObj.getScoreOfError().toString() + '"' +  " placeholder=\"检查项分数设置\">\r\n" + 
+					"		<input type=\"number\" name=\"scoreOfError\" value=" + '"' + errorScore.substring(0, errorScore.indexOf('.')) + '"' + " min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"		<font size=\"2\">/*错误消息：代码中的错误项（编译器检查不出来的BUG），如：数组越界、内存泄漏等*/</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"	    \r\n" + 
-					"	        启用警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkWarning\" value=\"warning\"" + checkWarning + ">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfWarning\" value=" + scoreOfWarning + "placeholder=\"检查项分数设置\">\r\n" + 
+					"	       启用警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkWarning\" value=\"warning\"" + checkWarning + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfWarning\" value=" + scoreOfWarning + " min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*警告消息：为了避免产生bug而提供的编程改进意见，如：所写的代码可能出现空指针异常等*/</font>\r\n" + 
 					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用风格警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkStyle\" value=\"style\"" + checkStyle + ">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfStyle\" value=" + scoreOfStyle + "placeholder=\"检查项分数设置\">\r\n" + 
-					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用可移植性警告消息\r\n" + 
-					"	    <input type=\"checkbox\" name=\"checkPortability\" value=\"portability\"" + checkPortability + ">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfPortability\" value="+ scoreOfPortability + "placeholder=\"检查项分数设置\">\r\n" + 
-					"	    <br />   \r\n" + 
-					"	      \r\n" + 
-					"	        启用性能警告消息\r\n" + 
+					"	       启用风格警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkStyle\" value=\"style\"" + checkStyle + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfStyle\" value=" + scoreOfStyle +" min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*风格警告消息：风格有关问题的代码清理，如：冗余代码、常量性等*/</font>\r\n" + 
+					"	    <br />    \r\n" + 
+					"	       启用可移植性警告消息\r\n" + 
+					"	    <input type=\"checkbox\" name=\"checkPortability\" value=\"portability\"" + checkPortability + "/>\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfPortability\" value=" + scoreOfPortability + " min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">/*可移植性警告消息：提示跨平台时容易出现的问题，如：64 位的可移植性、不同的编译器中代码运行结果不同等*/</font>\r\n" + 
+					"	    <br />	      \r\n" + 
+					"	       启用性能警告消息\r\n" + 
 					"	    <input type=\"checkbox\" name=\"checkPerformance\" value=\"performance\"" + checkPerformance + ">\r\n" + 
-					"	    <input type=\"text\" name=\"scoreOfPerformance\" value=" + scoreOfPerformance + "placeholder=\"检查项分数设置\">\r\n" + 
+					"	    <input type=\"number\" name=\"scoreOfPerformance\" value=" + scoreOfPerformance + "  min=\"1\" max=\"100\"  placeholder=\"分数\" />\r\n" + 
+					"	    <font size=\"2\">性能警告消息：建议可优化的代码（这些建议只是基于常识，即使修复这些消息，也不确定会得到任何可测量的性能提升）；</font>\r\n" + 
 					"	    <br />\r\n" + 
-					"	     \r\n" + 
-					"	    <font size=\"3\" color=\"#FF0000\">检查项说明:</font>\r\n" + 
-					"	    <br />\r\n" + 
-					"	    <font size=\"2\">1、错误消息：代码中的错误项（编译器检查不出来的BUG），如：数组越界、内存泄漏等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">2、警告消息：为了避免产生bug而提供的编程改进意见，如：代码可能出现空指针异常等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">3、风格警告消息：风格有关问题的代码清理，如：冗余代码、常量性等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">4、可移植性警告消息：提示跨平台时容易出现的问题，如：64 位的可移植性、不同的编译器中代码运行结果不同等；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		<font size=\"2\">5、性能警告消息：建议可优化的代码（这些建议只是基于常识，即使修复这些消息，也不确定会得到任何可测量的性能提升）；</font>\r\n" + 
-					"		<br />\r\n" + 
-					"		\r\n" + 
 					"	</div>";
 		}
 		return html;

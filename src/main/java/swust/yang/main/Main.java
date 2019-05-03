@@ -1,25 +1,27 @@
 package swust.yang.main;
 
-import java.util.Map;
+import java.io.IOException;
+import java.util.List;
 
-import swust.yang.util.ResultsSummar;
+import swust.yang.entity.ResultMsg;
+import swust.yang.service.IPlug;
+import swust.yang.service.impl.CodeRecheckPlug;
 
 public class Main {
 
-	public static void main(String[] args) {
-		String s = String.format("%1.1f", 1.3256);
-		String ts = String.format("%1.1f", 1.3377888333333);
-		System.out.println(s);
-		System.out.println(ts);
-		System.out.println(s.equals(ts));
-		ResultsSummar.init();
-		Map<String, Integer> map = ResultsSummar.getMap();
-		map.put("test", 11);
-		System.out.println("map size:" + ResultsSummar.getMap().size());
-		System.out.println("map contains key:" + ResultsSummar.getMap().containsKey("test"));
-		ResultsSummar.clear();
-		System.out.println("map clear:" + ResultsSummar.getMap().isEmpty());
-		
+	public static void main(String[] args) throws IOException {
+		IPlug recheck = new CodeRecheckPlug();
+		String configInfo = "{\r\n" + 
+				"	\"thresholdValue\": \"80\"\r\n" + 
+				"}";
+		String toolPath = "E:\\sim";
+		String srcDir = "E:\\simTest";
+		String logDir = "E:\\simLog";
+		List<ResultMsg> list = recheck.batchExecute(configInfo, toolPath, srcDir, logDir);
+		for(ResultMsg item : list) {
+			System.out.println(item.getStudentInfor());
+			System.out.println(item.getValue());
+		}
 	}
 
 }

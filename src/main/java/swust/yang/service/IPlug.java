@@ -13,7 +13,8 @@ public interface IPlug {
 	 * @param configInfo 前端返回的配置信息(JSON格式)
 	 * @param filePath   待检查作业所在路径(绝对路径：包含文件名及文件后缀名)
 	 * @param logDir     日志存放目录(绝对路径)
-	 * @return 若执行成功，则返回执行结果(学生信息+得分(四舍五入取整))，反之返回null
+	 * @return 执行结果(多个字段)：studentInfor(学生信息)、value(执行结果-某类错误小于5个错一个扣一分,大于5个则该检查项设置的分数全部扣除)、
+	 * 						  message(执行成功返回"OK",反之返回错误描述)、code(执行成功返回0,反之返回-1)
 	 */
 	ResultMsg singleExecute(String configInfo, String toolPath, String filePath, String logDir);
 
@@ -23,7 +24,8 @@ public interface IPlug {
 	 * @param configInfo 前端返回的配置信息(JSON格式)
 	 * @param srcDir     待检查的作业目录(绝对路径)
 	 * @param logDir     日志存放目录(绝对路径)
-	 * @return 批量执行结果(学生信息+得分(四舍五入取整))，若某学生执行过程出错,那么该学生得分为0
+	 * @return 执行结果集合(多个字段)：studentInfor(学生信息)、value(执行结果-某类错误小于5个错一个扣一分,大于5个则该检查项设置的分数全部扣除)、
+	 * 						     message(执行成功返回"OK",反之返回错误描述)、code(执行成功返回0,反之返回-1)
 	 */
 	List<ResultMsg> batchExecute(String configInfo, String toolPath, String srcDir, String logDir);
 
@@ -36,7 +38,8 @@ public interface IPlug {
 
 	/**
 	 * 
-	 * @return 返回对插件信息的描述(返回值为一个实体类对象,其中保存了插件信息)
+	 * @return 返回对插件信息的描述：name(插件名)、version(插件版本)、className(插件接口实现类的路径(包路径+实现类类名))、
+	 * 						    author(插件开发者)、description(插件功能描述)
 	 */
 	PluginInfo getPluginInfo();
 

@@ -29,40 +29,47 @@ class RunTaskTest {
 	}
 
 	@Test
-	@DisplayName("testGetTaskScore => 解析日志得出分数")
+	@DisplayName("testGetTaskScore => 解析日志得出分数-cpplint")
 	void testGetTaskScoreOfLint() {
 		Map<String, Float> map = new HashMap<String, Float>();
-		map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 55.88f);
 		assertAll(()->{
 			float score = 0.0f;
 			//得分不为0
-			score = RunTask.getTaskScoreOfLint("E:\\log\\5120152516.log", map);
-			assertEquals(53.0f,score);
+			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 55.0f);
+			score = RunTask.getTaskScoreOfLint("E:\\log\\runTaskTest1.log", map);
+			assertEquals(50.0f,score);
 			
-			//得分为0
-			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 1.0f);
-			score = RunTask.getTaskScoreOfLint("E:\\log\\5120152516.log", map);
+			//错误个数比设置的分数大，得分为0
+			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 4.0f);
+			score = RunTask.getTaskScoreOfLint("E:\\log\\runTaskTest1.log", map);
+			assertEquals(0.0f,score);
+			
+			//错误个数大于5，该类检查项得分置为0 
+			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 100.0f);
+			score = RunTask.getTaskScoreOfLint("E:\\log\\runTaskTest2.log", map);
 			assertEquals(0.0f,score);
 			
 			//没有出错的规则，分数累加
-			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 4.5f);
-			map.put("~ RULE_4_5_B_use_braces_even_for_one_statement", 8.5f);
-			score = RunTask.getTaskScoreOfLint("E:\\log\\5120152516.log", map);
-			assertEquals(10.0f,score);
+			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 4.0f);
+			map.put("~ RULE_4_5_B_use_braces_even_for_one_statement", 8.0f);
+			score = RunTask.getTaskScoreOfLint("E:\\log\\runTaskTest1.log", map);
+			assertEquals(8.0f,score);
 			
 			assertThrows(FileNotFoundException.class, () -> {
 				 RunTask.getTaskScoreOfLint("E:\\log\\5120152518.log", map);
 	        });
 		});
 	}
+	
+	
 	@Test
-	@DisplayName("testGetTaskScore => 解析没有错误的日志")
+	@DisplayName("testGetTaskScore => 解析没有错误的日志-cpplint")
 	void testGetTaskScoreOfLint2() {
 		assertAll(()->{
 			Map<String, Float> map = new HashMap<String, Float>();
-			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 55.88f);
+			map.put("~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl", 55.0f);
 			float score = RunTask.getTaskScoreOfLint("E:\\log\\5120151234.log", map);
-			assertEquals(56.0f,score);
+			assertEquals(55.0f,score);
 			
 			BufferedReader read = new BufferedReader(new FileReader("E:\\log\\5120151234.log"));
 			assertEquals("Great! Check it out!",read.readLine());
@@ -75,27 +82,27 @@ class RunTaskTest {
 	void testGetTaskScoreOfCheck() {
 		assertAll(()->{
 			float score = 0.0f;
-			//得分不为0
+			//得分不为0,但error、style类错误个数大于5该类得分置为0
 			Map<String, Float> map = new HashMap<String, Float>();
-			map.put("error", 15.3f);
-			map.put("style", 10.1f);
+			map.put("error", 15.0f);
+			map.put("style", 10.0f);
 			map.put("warning", 3.0f);
 			score = RunTask.getTaskScoreOfCheck("E:\\cppcheckLog\\someError.log", map);
-			assertEquals(18.0f,score);
+			assertEquals(1.0f,score);
 
 			//得分为0
-			map.put("error", 4.3f);
-			map.put("style", 3.1f);
+			map.put("error", 4.0f);
+			map.put("style", 3.0f);
 			map.put("warning", 1.0f);
 			score = RunTask.getTaskScoreOfCheck("E:\\cppcheckLog\\someError.log", map);
 			assertEquals(0.0f,score);
 			
 			//设置了检查项但没有错误，成绩累加
-			map.put("error", 15.4f);
-			map.put("style", 10.1f);
+			map.put("error", 15.0f);
+			map.put("style", 10.0f);
 			map.put("warning", 3.0f);
 			score = RunTask.getTaskScoreOfCheck("E:\\cppcheckLog\\noErrorTest.log", map);
-			assertEquals(29.0f,score);
+			assertEquals(28.0f,score);
 			
 			BufferedReader read = new BufferedReader(new FileReader("E:\\cppcheckLog\\noErrorTest.log"));
 			assertEquals("Great! Check it out!",read.readLine());

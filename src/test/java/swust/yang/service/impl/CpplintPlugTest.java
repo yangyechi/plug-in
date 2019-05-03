@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import swust.yang.entity.PluginInfo;
 import swust.yang.entity.ResultMsg;
 import swust.yang.service.IPlug;
+import swust.yang.util.ResultsSummarOfLint;
 
 @DisplayName("代码规范性检查")
 class CpplintPlugTest {
@@ -65,16 +66,17 @@ class CpplintPlugTest {
 	void testSingleExecute2() {
 		String configInfo = "{\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
-				+ "	\"scoreOfFuncAnnotation\": \"10.888\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_1_A_do_not_start_filename_with_underbar;~ RULE_3_2_B_do_not_use_same_filename_more_than_once;\",\r\n"
-				+ "	\"scoreOfExtendRules\": \"55.55\"\r\n" + "}";
+				+ "	\"scoreOfFuncAnnotation\": \"10.0\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
+				+ "	\"scoreOfExtendRules\": \"55.0\"\r\n" + "}";
 		String filePath = "E:\\test\\5120152516.cpp";
 		String logDir = "E:\\log";
 		String toolPath = "E:\\nsiqcppstyle";
 		assertAll(() -> {
 			ResultMsg ret = cpplint.singleExecute(configInfo, toolPath, filePath, logDir);
-			assertEquals(63.0f, ret.getScore());
+			assertEquals("62.0", ret.getValue());
 			assertEquals("5120152516", ret.getStudentInfor());
+			assertFalse(ResultsSummarOfLint.getFlag());
 		});
 	}
 
@@ -85,7 +87,7 @@ class CpplintPlugTest {
 		String configInfo = "{\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"10\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"35\"\r\n" + "}";
 		String filePath = "E:\\test\\ExtendTest.cpp";
 		String logDir = "E:\\log";
@@ -93,7 +95,7 @@ class CpplintPlugTest {
 		assertAll(() -> {
 			ResultMsg ret = cpplint.singleExecute(configInfo, toolPath, filePath, logDir);
 			System.out.println("检查单个作业耗时：" + (System.currentTimeMillis() - start) + "ms");
-			assertEquals(29.0f, ret.getScore());
+			assertEquals("41.0", ret.getValue());
 			assertEquals("ExtendTest", ret.getStudentInfor());
 		});
 	}
@@ -131,7 +133,9 @@ class CpplintPlugTest {
 		String configInfo = "{\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"30\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_1_A_do_not_start_filename_with_underbar;~ RULE_3_2_B_do_not_use_same_filename_more_than_once;\",\r\n"
+				+ " \"checkUseGoto\": \"~ RULE_7_2_B_do_not_use_goto_statement\",\r\n"
+				+ " \"scoreOfUseGoto\": \"10\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"20\"\r\n" + "}";
 		String filePath = "E:\\batchTest";
 		String logDir = "E:\\batchLog";
@@ -140,16 +144,16 @@ class CpplintPlugTest {
 			long start = System.currentTimeMillis();
 			List<ResultMsg> list = cpplint.batchExecute(configInfo, toolPath, filePath, logDir);
 			System.out.println("cpplint批量执行耗时：" + (System.currentTimeMillis() - start) + "ms");
-			assertEquals(50.0f, list.get(0).getScore());
+			assertEquals("60.0", list.get(0).getValue());
 			assertEquals("5120151234", list.get(0).getStudentInfor());
 
-			assertEquals(47.0f, list.get(1).getScore());
+			assertEquals("57.0", list.get(1).getValue());
 			assertEquals("5120152516", list.get(1).getStudentInfor());
 
-			assertEquals(49.0, list.get(2).getScore());
+			assertEquals("59.0", list.get(2).getValue());
 			assertEquals("5120154444", list.get(2).getStudentInfor());
 
-			assertEquals(47.0, list.get(3).getScore());
+			assertEquals("56.0", list.get(3).getValue());
 			assertEquals("ExtendTest", list.get(3).getStudentInfor());
 		});
 	}
@@ -160,7 +164,7 @@ class CpplintPlugTest {
 		String configInfo = "{\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"10\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"20\"\r\n" + "}";
 		String filePath = "E:\\batchTest";
 		String logDir = "E:\\batchLog";
@@ -169,16 +173,16 @@ class CpplintPlugTest {
 			long start = System.currentTimeMillis();
 			List<ResultMsg> list = cpplint.batchExecute(configInfo, toolPath, filePath, logDir);
 			System.out.println("批量执行耗时：" + (System.currentTimeMillis() - start) + "ms");
-			assertEquals(20.0f, list.get(0).getScore());
+			assertEquals("30.0", list.get(0).getValue());
 			assertEquals("5120151234", list.get(0).getStudentInfor());
 
-			assertEquals(17.0f, list.get(1).getScore());
+			assertEquals("27.0", list.get(1).getValue());
 			assertEquals("5120152516", list.get(1).getStudentInfor());
 
-			assertEquals(19.0f, list.get(2).getScore());
+			assertEquals("29.0", list.get(2).getValue());
 			assertEquals("5120154444", list.get(2).getStudentInfor());
 
-			assertEquals(16.0f, list.get(3).getScore());
+			assertEquals("26.0", list.get(3).getValue());
 			assertEquals("ExtendTest", list.get(3).getStudentInfor());
 		});
 	}
@@ -191,7 +195,7 @@ class CpplintPlugTest {
 		configInfo = "{\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"10\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"20\"\r\n" + "}";
 		// 测试没有设置总分
 		msg = cpplint.checkConfigInfo(configInfo);
@@ -202,7 +206,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"50\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"10\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"20\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分与各检查项分数之和不相等，请检查！", msg);
@@ -212,7 +216,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"0\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"10\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"20\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分必须大于0且不能为特殊字符/字母！", msg);
@@ -222,7 +226,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"100\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"20\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("OK", msg);
@@ -232,7 +236,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"-1.1\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"20\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分必须大于0且小于等于100！", msg);
@@ -242,7 +246,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"101.1\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"20\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分必须大于0且小于等于100！", msg);
@@ -250,8 +254,8 @@ class CpplintPlugTest {
 		//测试总分为特殊符号
 		configInfo = "{\r\n" + 
 				"	\"totalScore\": \"########\",\r\n" + 
-				"	\"checkExtendRules\": \"~ RULE_3_1_A_do_not_start_filename_with_underbar;~ RULE_3_2_B_do_not_use_same_filename_more_than_once;\",\r\n" + 
-				"	\"scoreOfExtendRules\": \"@@##$$%%%$^&*\"\r\n" + 
+				"	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n" + 
+				"	\"scoreOfExtendRules\": \"15\"\r\n" + 
 				"}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分必须大于0且不能为特殊字符/字母！", msg);
@@ -268,7 +272,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"100\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 			//	+ "	\"scoreOfFuncAnnotation\": 20,\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("每一项检查项及其对应分数必须同时为空或者同时不为空！", msg);
@@ -278,7 +282,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"100\",\r\n"
 				//+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"20\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("每一项检查项及其对应分数必须同时为空或者同时不为空！", msg);
@@ -288,7 +292,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"100\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"0\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("检查项分数必须大于0且不能为特殊字符/字母！", msg);
@@ -298,7 +302,7 @@ class CpplintPlugTest {
 				+ "	\"totalScore\": \"100\",\r\n"
 				+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 				+ "	\"scoreOfFuncAnnotation\": \"110\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("检查项分数必须大于0且小于等于100！", msg);
@@ -308,7 +312,7 @@ class CpplintPlugTest {
 						+ "	\"totalScore\": \"100\",\r\n"
 						+ "	\"checkFuncAnnotation\": \"~ RULE_5_3_A_provide_doxygen_function_comment_on_function_in_impl\",\r\n"
 						+ "	\"scoreOfFuncAnnotation\": \"-110\",\r\n"
-						+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+						+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 						+ "	\"scoreOfExtendRules\": \"80\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("检查项分数必须大于0且小于等于100！", msg);
@@ -331,7 +335,7 @@ class CpplintPlugTest {
 		
 		configInfo =  "{\r\n" 
 				+ "	\"totalScore\": \"50\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"50\"\r\n" + "}";
 		//扩展项规则和分数都设置,且分数与总分相等
 		msg = cpplint.checkConfigInfo(configInfo);
@@ -340,7 +344,7 @@ class CpplintPlugTest {
 		//设置了扩展项规则，但没有设置分数
 		configInfo = "{\r\n" 
 				+ "	\"totalScore\": \"100\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 			//	+ "	\"scoreOfExtendRules\": 100\r\n" + "}";
 				+ "}";
 		msg = cpplint.checkConfigInfo(configInfo);
@@ -357,7 +361,7 @@ class CpplintPlugTest {
 		//设置了扩展项分数和规则，但分数为0
 		configInfo = "{\r\n" 
 				+ "	\"totalScore\": \"100\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"0\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("扩展检查项分数必须大于0且不能为特殊字符/字母！", msg);	
@@ -365,7 +369,7 @@ class CpplintPlugTest {
 		//设置了扩展项分数和规则，但分数为100且各检查项分数之和与总分不相等
 		configInfo = "{\r\n" 
 				+ "	\"totalScore\": \"50\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"100\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("总分与各检查项分数之和不相等，请检查！", msg);
@@ -373,7 +377,7 @@ class CpplintPlugTest {
 		//设置了扩展项分数和规则，但分数小于0
 		configInfo = "{\r\n" 
 				+ "	\"totalScore\": \"100\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"-1.1\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("扩展检查项分数必须大于0且小于等于100！", msg);
@@ -381,7 +385,7 @@ class CpplintPlugTest {
 		//设置了扩展项分数和规则，但分数大于100
 		configInfo = "{\r\n" 
 				+ "	\"totalScore\": \"100\",\r\n"
-				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;~ RULE_4_2_A_B_space_around_word;\",\r\n"
+				+ "	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n"
 				+ "	\"scoreOfExtendRules\": \"101.888\"\r\n" + "}";
 		msg = cpplint.checkConfigInfo(configInfo);
 		assertEquals("扩展检查项分数必须大于0且小于等于100！", msg);
@@ -389,7 +393,7 @@ class CpplintPlugTest {
 		//设置了扩展项分数和规则，但分数是特殊符号
 		configInfo = "{\r\n" + 
 				"	\"totalScore\": \"100\",\r\n" + 
-				"	\"checkExtendRules\": \"~ RULE_3_1_A_do_not_start_filename_with_underbar;~ RULE_3_2_B_do_not_use_same_filename_more_than_once;\",\r\n" + 
+				"	\"checkExtendRules\": \"~ RULE_3_3_A_start_function_name_with_is_or_has_when_return_bool;\",\r\n" + 
 				"	\"scoreOfExtendRules\": \"@@##$$%%%$^&*\"\r\n" + 
 				"}";
 		msg = cpplint.checkConfigInfo(configInfo);

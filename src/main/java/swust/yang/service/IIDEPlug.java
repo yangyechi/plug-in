@@ -3,7 +3,7 @@ package swust.yang.service;
 import java.util.List;
 
 import swust.yang.entity.PluginInfo;
-import swust.yang.entity.ResultMsgOfGcc;
+import swust.yang.entity.ResultMsg;
 
 public interface IIDEPlug {
 
@@ -18,7 +18,7 @@ public interface IIDEPlug {
 	 *         Answer(不通过)、Compile Error(编译错误)、 Time Limit Exceeded(超时)、Memory Limit
 	 *         Exceeded(超出限定内存)、 Presentation Error(输出格式错误)、Runtime Error(运行错误)
 	 */
-	ResultMsgOfGcc singleExecute(List<String> testCase, long timeout, String file_path, String log_dir);
+	ResultMsg singleExecute(List<String> testCase, long timeout, String file_path, String log_dir);
 
 	/**
 	 * @description 批量执行一个目录下的所有作业
@@ -30,7 +30,7 @@ public interface IIDEPlug {
 	 *         Error(编译错误)、 Time Limit Exceeded(超时)、Memory Limit Exceeded(超出限定内存)、
 	 *         Presentation Error(输出格式错误)、Runtime Error(运行错误)
 	 */
-	List<ResultMsgOfGcc> batchExecute(List<String> testCase, long timeout, String src_dir, String log_dir);
+	List<ResultMsg> batchExecute(List<String> testCase, long timeout, String src_dir, String log_dir);
 
 	/**
 	 * 
